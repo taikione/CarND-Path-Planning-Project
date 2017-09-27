@@ -7,7 +7,7 @@
 #include "spline.h"
 #include "utility.h"
 
-static const float VEHICLE_WIDTH = 1.0;
+static const double VEHICLE_WIDTH = 2.0;
 
 using namespace std;
 
@@ -78,11 +78,6 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
   vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
   vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
-  // waypointの間隔も加速した形にする場合
-  //vector<double> next_wp0 = getXY(car_s+30+acceleration, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-  //vector<double> next_wp1 = getXY(car_s+60+acceleration*2, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-  //vector<double> next_wp2 = getXY(car_s+90+acceleration*3, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
   ptsx.push_back(next_wp0[0]);
   ptsx.push_back(next_wp1[0]);
   ptsx.push_back(next_wp2[0]);
@@ -116,7 +111,7 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
   double target_dist = sqrt((target_x)*(target_x) + (target_y)*(target_y));
 
   // ref_val/2.24 is to convert mi/h to m/s: 1/(1.61*1000/3600) = 2.24
-  double N = (target_dist / (.02*ref_val / 2.24));
+  double N = (target_dist / (0.02*ref_val / 2.24));
 
   double x_add_on = 0;
 
@@ -148,21 +143,20 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
 int isCollision(const vector<double> &trajectory_s, const vector<double> &trajectory_d,
                  const vector<double> &target_trajectory_s, const vector<double> &target_trajectory_d) {
 
-  for(int i=1; i<trajectory_s.size(); i++) {
+  for(int i=0; i<trajectory_s.size(); i++) {
     if (abs(trajectory_d[i] - target_trajectory_d[i]) < VEHICLE_WIDTH) {
 
       if ((target_trajectory_s[i] >= trajectory_s[i]) && (target_trajectory_s[i-1] <= trajectory_s[i])){
         cout << "is collison " << i << endl;
-        return i;
+        return i+1;
 
       } else if ((target_trajectory_s[i-1] >= trajectory_s[i]) && (target_trajectory_s[i] <= trajectory_s[i])){
         cout << "is collison " << i << endl;
-        return i;
+        return i+1;
 
       }
     }
   }
-
 
   return 0;
 }
@@ -174,17 +168,17 @@ vector<double> getClosestForwardVehicles(double car_s,
 
   vector<double> closest_forward_vehicle;
 
-  double distance_to_forward_vehicle = 100;
+  double distance_to_forward_vehicle = 30;
 
   for (int i = 0; i < sensor_fusion.size(); i++) {
     float d = sensor_fusion[i][6];
 
     // check the vehicle is in the lane or not.
-    if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
+    if (d < (2 + 4*lane + 2) && d > (2 + 4*lane - 2)) {
       double s = sensor_fusion[i][5];
 
       if (s > car_s && abs(car_s - s) < distance_to_forward_vehicle) {
-        cout << "closest forward !!!" << endl;
+        // cout << "closest forward !!!" << endl;
         closest_forward_vehicle = sensor_fusion[i];
         distance_to_forward_vehicle = abs(car_s - s);
       }
@@ -201,17 +195,17 @@ vector<double> getClosestBackwardVehicles(double car_s,
 
   vector<double> closest_backward_vehicle;
 
-  double distance_to_backward_vehicle = 100;
+  double distance_to_backward_vehicle = 30;
 
   for (int i = 0; i < sensor_fusion.size(); i++) {
     float d = sensor_fusion[i][6];
 
     // check the vehicle is in the lane or not.
-    if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
+    if (d < (2 + 4*lane + 2) && d > (2 + 4*lane - 2)) {
       double s = sensor_fusion[i][5];
 
       if (s < car_s && abs(car_s - s) < distance_to_backward_vehicle) {
-        cout << "closest backward !!!" << endl;
+        // cout << "closest backward !!!" << endl;
         closest_backward_vehicle = sensor_fusion[i];
         distance_to_backward_vehicle = abs(car_s - s);
       }
@@ -230,8 +224,9 @@ vector<vector<double>> getOtherVehicleTrajectory(vector<double> &vehicle, int tr
   double closest_vehicle_x = vehicle[1];
   double closest_vehicle_y = vehicle[2];
 
-  double vx = vehicle[3];
-  double vy = vehicle[4];
+  // trajectory内のway pointは0.2秒ごと, vx, vyは1秒毎なのでvx, vyを5で割る
+  double vx = vehicle[3] / 5;
+  double vy = vehicle[4] / 5;
 
   for(int i=0; i<trajectory_size; i++) {
     closest_vehicle_x += vx;
@@ -281,14 +276,17 @@ double getCollisionCost(int lane, double car_s, double car_yaw,
     forward_collision_at = isCollision(trajectory_s, trajectory_d,
                                        forward_vehicle_sd_trajectory[0], forward_vehicle_sd_trajectory[1]);
 
-    // cout << "collision ... " << forward_collision_at << endl;
+    if (forward_collision_at != 0) {
+      // cost += exp(-pow(forward_collision_at, 2));
+      cost += exp(3 / forward_collision_at);
+    }
   }
 
   // create closest backward vehicle trajectory
   vector<double> backward_vehicle = getClosestBackwardVehicles(car_s, lane, sensor_fusion);
 
   if (backward_vehicle.size() == 7) {
-    cout << "closed vehicle is here" << endl;
+    // cout << "closed vehicle is here" << endl;
 
     vector<vector<double>> backward_vehicle_trajectory = getOtherVehicleTrajectory(backward_vehicle, trajectory[0].size());
 
@@ -301,33 +299,11 @@ double getCollisionCost(int lane, double car_s, double car_yaw,
     backward_collision_at = isCollision(trajectory_s, trajectory_d,
                                         backward_vehicle_sd_trajectory[0], backward_vehicle_sd_trajectory[1]);
 
+    if (backward_collision_at != 0) {
+      // cost += exp(-pow(backward_collision_at, 2));
+      cost += exp(3 / backward_collision_at);
+    }
   }
-
-  if (forward_collision_at != 0) {
-    cost += exp(-pow(forward_collision_at, 2));
-  }
-
-  if (backward_collision_at != 0) {
-    cost += exp(-pow(backward_collision_at, 2));
-  }
-
-  // for(int i=0; i<closestVehicles.size(); i++) {
-  //   double closest_vehicle_x = closestVehicles[i][1];
-  //   double closest_vehicle_y = closestVehicles[i][2];
-  //   double vx = closestVehicles[i][3];
-  //   double vy = closestVehicles[i][4];
-
-  //   for(int i=0; i<trajectory_x.size(); i++) {
-  //     prev_x = closest_vehicle_x;
-  //     prev_y = closest_vehicle_y;
-
-  //     closest_vehicle_x += vx;
-  //     closest_vehicle_y += vy;
-
-  //    if(closest_vehicle_x > trajectory_x[i] && closest_vehicle_y > tra)
-
-  //  }
-  //}
 
   return cost * 1000;
 }

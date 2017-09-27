@@ -35,8 +35,12 @@ string hasData(string s) {
 // initialization
 int lane = 1;
 double ref_val = 0.0;
+const double LANE_CHANGE_COST = 100;
+
 // Keep Lane, Lane Change Left, Lane Change Right
-vector<string> states = {"KL", "LCL", "LCR"};
+// Keep Lane Speed Down, Lane Change Left Speed down, Lane Change Right speed down
+// vector<string> states = {"KL", "LCL", "LCR", "KLdown", "LCLdown", "LCRdown"};
+vector<string> states = {"KL", "KLdown", "LCL", "LCLdown", "LCRdown", "LCR"};
 
 
 int main() {
@@ -121,61 +125,84 @@ int main() {
 
           vector<vector<double>> next_trajectory;
           double cost = 99999;
+          double next_ref_val = ref_val;
+
+          cout << "######" << endl;
 
           for (string state: states) {
             vector<vector<double>> tmp_trajectory;
             int next_lane;
             double next_trajectory_cost = 0.0;
-
             double acceleration;
+
             if (state == "KL") {
               acceleration = 0.224;
               next_lane = lane;
+
             } else if (state == "LCL" && lane > 0) {
               next_lane = lane - 1;
               acceleration = 0.224;
-              next_trajectory_cost += 1.5;
+              next_trajectory_cost += LANE_CHANGE_COST;
+
             } else if (state == "LCR" && lane < 2) {
               next_lane = lane + 1;
               acceleration = 0.224;
-              next_trajectory_cost += 1.5;
+              next_trajectory_cost += LANE_CHANGE_COST;
+
+            } else if (state == "KLdown") {
+              acceleration = -1.12;
+              next_lane = lane;
+              next_trajectory_cost += 100;
+
+            } else if (state == "LCLdown" && lane > 0) {
+              next_lane = lane - 1;
+              acceleration = -1.12;
+              next_trajectory_cost += LANE_CHANGE_COST;
+
+            } else if (state == "LCRdown" && lane < 2) {
+              next_lane = lane + 1;
+              acceleration = -1.12;
+              next_trajectory_cost += LANE_CHANGE_COST;
+
             } else {
               continue;
+
             }
 
-            // cout << state << endl;
+            cout << "state " << state << endl;
 
-            // bool is_close = isClose(car_s, car_d, 0.224, prev_size, lane, sensor_fusion);
+            bool is_close = isClose(car_s, car_d, 0.224, prev_size, next_lane, sensor_fusion);
 
-            // if(is_close || ref_val > 49.5) {
-            //   ref_val -= 0.224;
+            if(is_close || ref_val > 49.5) {
+              acceleration = -0.224;
 
-            // } else if (ref_val < 49.5) {
-            //   ref_val += 0.224;
+            } else if (ref_val < 49.5) {
+              acceleration = 0.224;
+            }
+            if (ref_val > 49.5) {
+              acceleration = -0.224;
+            }
+
+            // if (next_ref_val > 45.0) {
+            //   next_ref_val -= 0.224;
             // }
 
-            if (ref_val > 49.5) {
-              ref_val -= 0.224;
-            }
+            next_ref_val += acceleration;
 
-            ref_val += acceleration;
-
-            // tmp_trajectory = getTrajectory(car_x, car_y, car_yaw, car_s, ref_val, lane, prev_size,
-            //                                previous_path_x, previous_path_y,
-            //                                map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
-            tmp_trajectory = getTrajectory(car_x, car_y, car_yaw, car_s, ref_val, next_lane, prev_size,
+            tmp_trajectory = getTrajectory(car_x, car_y, car_yaw, car_s, next_ref_val, next_lane, prev_size,
                                            previous_path_x, previous_path_y,
                                            map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
-            next_trajectory_cost += getCollisionCost(next_lane, car_yaw, car_s, tmp_trajectory, sensor_fusion, map_waypoints_x, map_waypoints_y);
+            next_trajectory_cost += getCollisionCost(next_lane, car_s, car_yaw, tmp_trajectory, sensor_fusion, map_waypoints_x, map_waypoints_y);
+
+            cout << "next_trajectory_cost " << next_trajectory_cost << endl;
 
             if (cost > next_trajectory_cost) {
               cost = next_trajectory_cost;
               next_trajectory = tmp_trajectory;
+              lane = next_lane;
+              ref_val = next_ref_val;
             }
-
-            lane = next_lane;
           }
 
           json msgJson;
