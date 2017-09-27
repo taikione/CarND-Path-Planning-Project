@@ -163,6 +163,8 @@ CMakeFiles/path_planning.dir/src/main.cpp.o
  /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/json.hpp
  /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/main.cpp
  /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/spline.h
+ /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/utility.h
+ /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/vehicle.h
  /usr/local/include/pthread-barrier.h
  /usr/local/include/uWS/Extensions.h
  /usr/local/include/uWS/Group.h

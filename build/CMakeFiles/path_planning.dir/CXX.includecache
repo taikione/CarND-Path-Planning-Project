@@ -849,8 +849,10 @@ Eigen-3.3/Eigen/QR
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/QR
 json.hpp
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/json.hpp
-spline.h
-/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/spline.h
+vehicle.h
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/vehicle.h
+utility.h
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/utility.h
 
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/spline.h
 cstdio
@@ -861,6 +863,22 @@ vector
 -
 algorithm
 -
+
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/utility.h
+vector
+-
+math.h
+-
+
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/vehicle.h
+string
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/string
+vector
+-
+spline.h
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/spline.h
+utility.h
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/utility.h
 
 /usr/local/include/pthread-barrier.h
 errno.h
