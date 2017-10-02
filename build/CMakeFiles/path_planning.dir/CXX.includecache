@@ -853,6 +853,8 @@ vehicle.h
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/vehicle.h
 utility.h
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/utility.h
+chrono
+-
 
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/spline.h
 cstdio
@@ -875,6 +877,8 @@ string
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/string
 vector
 -
+math.h
+/Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/math.h
 spline.h
 /Users/t.nishime/workspace/SDCTerm3/CarND-Path-Planning-Project/src/spline.h
 utility.h

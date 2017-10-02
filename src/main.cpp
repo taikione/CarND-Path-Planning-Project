@@ -10,6 +10,7 @@
 #include "json.hpp"
 #include "vehicle.h"
 #include "utility.h"
+#include <chrono>
 
 using namespace std;
 
@@ -34,13 +35,33 @@ string hasData(string s) {
 
 // initialization
 int lane = 1;
+int iterate = 0;
+int prev_lane = 1;
+int lane_change_elapsed_time = 0;
+int deceleration_at = 0;
+
 double ref_val = 0.0;
-const double LANE_CHANGE_COST = 100;
+double prev_ref_val = 0.0;
+
+const double LANE_CHANGE_COST = 600;
+const double LOW_SPEED_COST = 100;
+const double OVER_SPEED_LIMIT_COST = 300;
+const double COLLISON_ACC_COST = 300; // Penalty for acceleration when collision
+// const double PREPARE_CHANGE_LANE_COST = 500; // Prepare for Lane Change cost
+const double SPEED_LIMIT = 49.5;
+const double SPEED_LOWER_LIMIT = 45.0;
+bool is_lane_changed = false;
+bool first_implement = true;
 
 // Keep Lane, Lane Change Left, Lane Change Right
 // Keep Lane Speed Down, Lane Change Left Speed down, Lane Change Right speed down
-// vector<string> states = {"KL", "LCL", "LCR", "KLdown", "LCLdown", "LCRdown"};
-vector<string> states = {"KL", "KLdown", "LCL", "LCLdown", "LCRdown", "LCR"};
+
+// vector<string> states = {"KLa", "KLd", "KL", "LCLa", "LCLd", "LCL", "LCRa", "LCRd", "LCR"};
+// vector<string> states = {"KL", "KLa", "KLd", "LCL", "LCLa", "LCLd", "LCR", "LCRa", "LCRd", "PLC"};
+// vector<string> states = {"KLa", "KL", "KLd", "LCL", "LCLa", "LCLd", "LCR", "LCRa", "LCRd", "PLC"};
+// vector<string> states = {"KL", "LCL", "LCLa", "LCLd", "LCR", "LCRa", "LCRd", "PLC"};
+// vector<string> states = {"KL", "LCL", "LCLa", "LCLd", "LCR", "LCRa", "LCRd"};
+vector<string> states = {"KL", "LCL", "LCLd", "LCR", "LCRd"};
 
 
 int main() {
@@ -117,6 +138,8 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
+          // vector<vector<double>> denoising_sensor_fusion = getDenoisingSensorfusion(sensor_fusion);
+
           int prev_size = previous_path_x.size();
 
           if (prev_size > 0) {
@@ -124,10 +147,12 @@ int main() {
           }
 
           vector<vector<double>> next_trajectory;
-          double cost = 99999;
-          double next_ref_val = ref_val;
+          double cost = 1000000;
+          // double next_ref_val = prev_ref_val;
+          double next_ref_val;
 
-          cout << "######" << endl;
+          cout << "### " << iterate << " ###" << endl;
+          cout << "### LANE: " << prev_lane << " ###" << endl;
 
           for (string state: states) {
             vector<vector<double>> tmp_trajectory;
@@ -135,67 +160,186 @@ int main() {
             double next_trajectory_cost = 0.0;
             double acceleration;
 
+            // keep velocity
             if (state == "KL") {
               acceleration = 0.224;
-              next_lane = lane;
+              next_lane = prev_lane;
 
-            } else if (state == "LCL" && lane > 0) {
-              next_lane = lane - 1;
+            } else if (state == "LCL" && prev_lane > 0) {
+              acceleration = 0.0;
+              next_lane = prev_lane - 1;
+              next_trajectory_cost += LANE_CHANGE_COST;
+
+            } else if (state == "LCR" && prev_lane < 2) {
+              acceleration = 0.0;
+              next_lane = prev_lane + 1;
+              next_trajectory_cost += LANE_CHANGE_COST;
+
+            // velocity down
+            // } else if (state == "KLd") {
+            //   acceleration = -0.224;
+            //   next_lane = prev_lane;
+            //   next_trajectory_cost += LOW_SPEED_COST;
+
+            } else if (state == "LCLd" && prev_lane > 0) {
+              acceleration = -0.224;
+              next_lane = prev_lane - 1;
+              next_trajectory_cost += LANE_CHANGE_COST;
+              next_trajectory_cost += LOW_SPEED_COST;
+
+            } else if (state == "LCRd" && prev_lane < 2) {
+              acceleration = -0.224;
+              next_lane = prev_lane + 1;
+              next_trajectory_cost += LANE_CHANGE_COST;
+              next_trajectory_cost += LOW_SPEED_COST;
+
+            // velocity up
+            // } else if (state == "KLa") {
+            //   next_lane = prev_lane;
+            //   acceleration = 0.224;
+
+            } else if (state == "LCLa" && prev_lane > 0) {
               acceleration = 0.224;
+              next_lane = prev_lane - 1;
               next_trajectory_cost += LANE_CHANGE_COST;
 
-            } else if (state == "LCR" && lane < 2) {
-              next_lane = lane + 1;
+            } else if (state == "LCRa" && prev_lane < 2) {
               acceleration = 0.224;
+              next_lane = prev_lane + 1;
               next_trajectory_cost += LANE_CHANGE_COST;
 
-            } else if (state == "KLdown") {
-              acceleration = -1.12;
-              next_lane = lane;
-              next_trajectory_cost += 100;
-
-            } else if (state == "LCLdown" && lane > 0) {
-              next_lane = lane - 1;
-              acceleration = -1.12;
-              next_trajectory_cost += LANE_CHANGE_COST;
-
-            } else if (state == "LCRdown" && lane < 2) {
-              next_lane = lane + 1;
-              acceleration = -1.12;
-              next_trajectory_cost += LANE_CHANGE_COST;
+            // Prepare for Lane Change
+            // } else if (state == "PLC") {
+            //   acceleration = -0.672;
+            //   next_lane = prev_lane;
+            //   next_trajectory_cost += PREPARE_CHANGE_LANE_COST;
 
             } else {
               continue;
 
             }
 
-            cout << "state " << state << endl;
 
-            bool is_close = isClose(car_s, car_d, 0.224, prev_size, next_lane, sensor_fusion);
+            double distance = getClosestVehicleDistance(car_s, next_lane, sensor_fusion);
+            // bool is_close = isClose(car_s, car_d, 0.224, prev_size, next_lane, denoising_sensor_fusion);
 
-            if(is_close || ref_val > 49.5) {
-              acceleration = -0.224;
+            // cout << " ### distance: "<< distance << endl;
 
-            } else if (ref_val < 49.5) {
-              acceleration = 0.224;
-            }
-            if (ref_val > 49.5) {
-              acceleration = -0.224;
-            }
-
-            // if (next_ref_val > 45.0) {
-            //   next_ref_val -= 0.224;
+            // if (is_close) {
+            //   acceleration = -1.12;
             // }
 
-            next_ref_val += acceleration;
+            // if(is_close || ref_val > 45.0) {
+            //   acceleration = -0.224;
+
+            // } else if (ref_val < 45.0) {
+            //   acceleration = 0.224;
+            // }
+            if ((state == "KL") && (distance < 15.0)) {
+              // acceleration = -0.224 * (5 - (distance / 10));
+              // acceleration = -0.1 * (5 - (distance / 10));
+              if (distance < 0.5) {
+                distance = 0.5;
+              }
+
+              // acceleration = -10 / distance;
+              acceleration = -4 / distance;
+              deceleration_at = 0;
+
+            } else if ((state == "KL") && (distance < 30.0) && (prev_ref_val > SPEED_LOWER_LIMIT)) {
+              // acceleration = -1.5 / distance;
+              // acceleration = 0.0112*distance - 0.448;
+              // acceleration = (0.224/25)*distance - (8*0.224/5); //40
+              acceleration = (0.224/15)*distance - 0.448; //30
+
+              if (deceleration_at == 0) {
+                cout << "### deceleration init ###" << endl;
+                deceleration_at = iterate;
+              }
+
+            } else if ((state == "KL") && (distance < 80.0) && (prev_ref_val < SPEED_LIMIT) && (prev_ref_val > SPEED_LOWER_LIMIT)) {
+              // acceleration = 0.00448*distance - 0.224;
+              // acceleration = (0.224/30)*distance - (5*0.224/3);
+              // acceleration = 0.0056*distance - 0.224; // 40,80
+              acceleration = 0.00448*distance - 0.134; // 30,80
+
+            } else if((state == "KL") && (prev_ref_val >= SPEED_LIMIT)) {
+              acceleration = 0.0;
+
+            }
+
+            if ((state == "KL") && (acceleration < 0.0) && (deceleration_at > 0)) {
+              int deceleration_time = iterate - deceleration_at;
+              if (deceleration_time > 10) {
+                deceleration_time = 10;
+              }
+              cout << "### deceleration penalty ### " << 100 * deceleration_time << endl;
+              next_trajectory_cost += 100*deceleration_time;
+
+            } else if ((state == "KL") && (acceleration > 0.0) && (deceleration_at > 0)) {
+              deceleration_at = 0;
+
+            } else if (is_lane_changed) {
+              deceleration_at = 0;
+
+            }
+
+            next_ref_val = prev_ref_val + acceleration;
+
+            // cout << "state " << state << "\t";
+            cout << state << "\t";
 
             tmp_trajectory = getTrajectory(car_x, car_y, car_yaw, car_s, next_ref_val, next_lane, prev_size,
                                            previous_path_x, previous_path_y,
                                            map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
-            next_trajectory_cost += getCollisionCost(next_lane, car_s, car_yaw, tmp_trajectory, sensor_fusion, map_waypoints_x, map_waypoints_y);
+            vector<vector<double>> sd_trajectory = getSDTrajectory(tmp_trajectory[0], tmp_trajectory[1], car_yaw, map_waypoints_x, map_waypoints_y);
+            // cout << "car SD: " << sd_trajectory[0][0] << ", " << sd_trajectory[1][0];
+            // cout << "car_s vs SDtrajectry " << car_s - sd_trajectory[0][0] << ", ";
+            // cout << "car_x vs tmptrajectry " << car_x - tmp_trajectory[0][0] << ", ";
 
-            cout << "next_trajectory_cost " << next_trajectory_cost << endl;
+            // next_trajectory_cost += getForwardCollisionCost(next_lane, car_s, sd_trajectory, sensor_fusion);
+            // double forward_collision_cost = getForwardCollisionCost(next_lane, car_s, sd_trajectory, denoising_sensor_fusion);
+            // double forward_collision_cost = getForwardCollisionCost(next_lane, car_s, tmp_trajectory, denoising_sensor_fusion);
+            double forward_collision_cost = getForwardCollisionCost(next_lane, car_s, sd_trajectory, sensor_fusion);
+            cout << "Fc cost: " << forward_collision_cost << ", ";
+            next_trajectory_cost += forward_collision_cost;
+
+            if (next_lane != prev_lane) {
+              // next_trajectory_cost += getBackwardCollisionCost(next_lane, car_s, sd_trajectory, sensor_fusion);
+              // double backward_collision_cost = getBackwardCollisionCost(next_lane, car_s, sd_trajectory, denoising_sensor_fusion);
+              // double backward_collision_cost = getBackwardCollisionCost(next_lane, car_s, tmp_trajectory, denoising_sensor_fusion);
+              double backward_collision_cost = getBackwardCollisionCost(next_lane, car_s, sd_trajectory, sensor_fusion);
+              cout << "Bc cost: " << backward_collision_cost << ", ";
+              next_trajectory_cost += backward_collision_cost;
+
+            } else {
+              cout << "Bc cost: 0, ";
+            }
+
+            // if ((next_ref_val > SPEED_LIMIT) && (acceleration > 0.0)) {
+            if ((prev_ref_val > SPEED_LIMIT) && (acceleration > 0.0)) {
+              next_trajectory_cost += OVER_SPEED_LIMIT_COST;
+            }
+
+            if ((next_lane == prev_lane) && (forward_collision_cost > 0.0) && (acceleration >= 0.0)) {
+              next_trajectory_cost += COLLISON_ACC_COST;
+            }
+
+            if ((is_lane_changed) && (next_lane != prev_lane) && (lane_change_elapsed_time == 0)) {
+              next_trajectory_cost += LANE_CHANGE_COST*5;
+              lane_change_elapsed_time = iterate + 5;
+
+            } else if ((lane_change_elapsed_time > iterate) && (state != "KL")) {
+              next_trajectory_cost += LANE_CHANGE_COST*5;
+
+            } else {
+
+              lane_change_elapsed_time = 0;
+            }
+
+            cout << "total_cost " << next_trajectory_cost;
+            cout << endl;
 
             if (cost > next_trajectory_cost) {
               cost = next_trajectory_cost;
@@ -203,7 +347,21 @@ int main() {
               lane = next_lane;
               ref_val = next_ref_val;
             }
+
           }
+
+          if (prev_lane != lane) {
+            is_lane_changed = true;
+            cout << " ======================= LANE CHANGED ======================= " << endl;
+
+          } else if (prev_lane == lane) {
+            is_lane_changed = false;
+          }
+
+          prev_lane = lane;
+          prev_ref_val = ref_val;
+
+          iterate += 1;
 
           json msgJson;
 
@@ -216,6 +374,9 @@ int main() {
           //this_thread::sleep_for(chrono::milliseconds(1000));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
+          if (first_implement) {
+            first_implement = false;
+          }
         }
       } else {
         // Manual driving

@@ -9,6 +9,9 @@
 #include <math.h>
 
 using namespace std;
+// static const double SENSOR_FUSION_S_NOISE = 9.0;
+// static const double SENSOR_FUSION_S_NOISE = -9.0;
+static const double SENSOR_FUSION_S_NOISE = 0.0;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -141,15 +144,21 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
-// Transform from Frenet s,d coordinates trajectory to Cartesian x,y trajectory
 vector<vector<double>> getSDTrajectory(const vector<double> &trajectory_x, const vector<double> &trajectory_y,
                                        double car_yaw, const vector<double> &maps_x, const vector<double> &maps_y) {
 
   vector<double> trajectory_s;
   vector<double> trajectory_d;
+  double yaw;
 
   for(int i=0; i<trajectory_x.size(); i++) {
-    vector<double> frenet = getFrenet(trajectory_x[i], trajectory_y[i], car_yaw, maps_x, maps_y);
+    if (i == 0) {
+      yaw = deg2rad(car_yaw);
+    } else {
+      yaw = atan2((trajectory_y[i] - trajectory_y[i-1]), (trajectory_x[i] - trajectory_x[i-1]));
+    }
+    vector<double> frenet = getFrenet(trajectory_x[i], trajectory_y[i], yaw, maps_x, maps_y);
+
     trajectory_s.push_back(frenet[0]);
     trajectory_d.push_back(frenet[1]);
   }
@@ -157,6 +166,33 @@ vector<vector<double>> getSDTrajectory(const vector<double> &trajectory_x, const
   return {trajectory_s, trajectory_d};
 
 }
+
+
+vector<vector<double>> getDenoisingSensorfusion(const vector<vector<double>> &sensor_fusion) {
+
+  vector<vector<double>> denoised_sensorfusions;
+
+  for(int i=0; i<sensor_fusion.size(); i++) {
+    double id = sensor_fusion[i][0];
+    double x = sensor_fusion[i][1];
+    double y = sensor_fusion[i][2];
+    double vx = sensor_fusion[i][3];
+    double vy = sensor_fusion[i][4];
+    double s = sensor_fusion[i][5] + SENSOR_FUSION_S_NOISE;
+    double d = sensor_fusion[i][6];
+
+    vector<double> denoised_sensorfusion{id, x, y, vx, vy, s, d};
+
+    denoised_sensorfusions.push_back(denoised_sensorfusion);
+  }
+
+  return denoised_sensorfusions;
+}
+
+// vector<double> getParameters(const string state, double lane) {
+//
+//   double next_state;
+// }
 
 
 #endif //PATH_PLANNING_UTILITIES_H
