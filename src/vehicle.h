@@ -105,7 +105,7 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
   }
 
   // Create 30m trajectory in a straight line distance.
-  double target_x = 70.0;
+  double target_x = 30.0;
   double target_y = s(target_x);
   double target_dist = sqrt((target_x)*(target_x) + (target_y)*(target_y));
 
@@ -143,7 +143,7 @@ double isCollision(const vector<double> &trajectory_s,
                    const vector<double> &target_trajectory_s, const vector<double> &target_trajectory_d) {
 
   int collision_at = 0;
-  cout << "iC ";
+  cout << "iC "; // logging collision trajectory id
 
   for(int i=trajectory_s.size(); i>0; i--) {
     if (abs(target_trajectory_s[i] - trajectory_s[i]) <= 20){
@@ -151,7 +151,7 @@ double isCollision(const vector<double> &trajectory_s,
     }
   }
 
-  cout << collision_at << ", ";
+  cout << collision_at << ", "; // logging
   return collision_at;
 }
 
@@ -186,7 +186,7 @@ vector<double> getClosestBackwardVehicles(double car_s,
                                           const vector<vector<double>> &sensor_fusion) {
 
   vector<double> closest_backward_vehicle;
-  double distance_to_backward_vehicle = 20;
+  double distance_to_backward_vehicle = 30;
 
   for (int i = 0; i < sensor_fusion.size(); i++) {
     double d = sensor_fusion[i][6];
@@ -254,10 +254,10 @@ double getForwardCollisionCost(int lane, double car_s,
 
   if (forward_vehicle.size() == 7) {
     // create closest forward vehicle trajectory
-    cout << "F_id: " << forward_vehicle[0] << "; ";
+    cout << "F_id: " << forward_vehicle[0] << "; "; // logging
 
     vector<vector<double>> forward_vehicle_trajectory = getOtherVehicleTrajectory(forward_vehicle, trajectory_s.size());
-    cout << "F_Dist: " << forward_vehicle_trajectory[0][0] - trajectory_s[0] << "; ";
+    cout << "F_Dist: " << forward_vehicle_trajectory[0][0] - trajectory_s[0] << "; "; // logging
 
     forward_collision_at = isCollision(trajectory_s, forward_vehicle_trajectory[0], forward_vehicle_trajectory[1]);
 
@@ -287,10 +287,10 @@ double getBackwardCollisionCost(int lane, double car_s,
   vector<double> backward_vehicle = getClosestBackwardVehicles(trajectory_s[0], lane, sensor_fusion);
 
   if (backward_vehicle.size() == 7) {
-    cout << "B_id: " << backward_vehicle[0] << "; ";
+    cout << "B_id: " << backward_vehicle[0] << "; "; // logging
 
     vector<vector<double>> backward_vehicle_trajectory = getOtherVehicleTrajectory(backward_vehicle, trajectory_s.size());
-    cout << "B_Dist: " << trajectory_s[0] - backward_vehicle_trajectory[0][0] << "; ";
+    cout << "B_Dist: " << trajectory_s[0] - backward_vehicle_trajectory[0][0] << "; "; // logging
 
     backward_collision_at = isCollision(trajectory_s, backward_vehicle_trajectory[0], backward_vehicle_trajectory[1]);
 

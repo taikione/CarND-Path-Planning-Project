@@ -47,7 +47,7 @@ const double LOW_SPEED_COST = 100;
 const double OVER_SPEED_LIMIT_COST = 300;
 const double COLLISON_ACC_COST = 300; // Penalty for acceleration when collision
 const double SPEED_LIMIT = 49.5;
-const double SPEED_LOWER_LIMIT = 45.0;
+const double SPEED_LOWER_LIMIT = 40.0;
 bool is_lane_changed = false;
 bool first_implement = true;
 
@@ -140,8 +140,8 @@ int main() {
           double cost = 1000000;
           double next_ref_val;
 
-          cout << "### " << iterate << " ###" << endl;
-          cout << "### LANE: " << prev_lane << " ###" << endl;
+          cout << "### " << iterate << " ###" << endl; // logging
+          cout << "### LANE: " << prev_lane << " ###" << endl; // logging
 
           for (string state: states) {
             vector<vector<double>> tmp_trajectory;
@@ -183,6 +183,7 @@ int main() {
             }
 
             double distance = getClosestVehicleDistance(car_s, next_lane, sensor_fusion);
+            // cout << " ### distance: " << distance << endl; // logging
 
             // Calculate the acceleration when state is KL.
             if ((state == "KL") && (distance < 15.0)) {
@@ -194,17 +195,22 @@ int main() {
               deceleration_at = 0;
 
             } else if ((state == "KL") && (distance < 30.0) && (prev_ref_val > SPEED_LOWER_LIMIT)) {
-              acceleration = (0.224/15)*distance - 0.448;
+              // acceleration = 0.0112*distance - 0.56;
+              acceleration = 0.0224*distance - 0.896;
 
               if (deceleration_at == 0) {
-                cout << "### deceleration init ###" << endl;
+                cout << "### deceleration init ###" << endl; // logging
                 deceleration_at = iterate;
               }
 
-            } else if ((state == "KL") && (distance < 80.0) && (prev_ref_val < SPEED_LIMIT) && (prev_ref_val > SPEED_LOWER_LIMIT)) {
-              acceleration = 0.00448*distance - 0.134;
+            } else if ((state == "KL") && (40.0 < distance) && (distance < 50.0) && (SPEED_LIMIT > prev_ref_val) && (prev_ref_val > SPEED_LOWER_LIMIT)) {
+              acceleration = 0.0;
 
-            } else if((state == "KL") && (prev_ref_val >= SPEED_LIMIT)) {
+            } else if ((state == "KL") && (distance <= 80.0) && (SPEED_LIMIT > prev_ref_val) && (prev_ref_val > SPEED_LOWER_LIMIT)) {
+              // acceleration = 0.0112*distance - 0.672;
+              acceleration = (0.224/30)*distance - (5*0.224/3);
+
+            } else if ((state == "KL") && (prev_ref_val >= SPEED_LIMIT)) {
               acceleration = 0.0;
 
             }
@@ -215,7 +221,7 @@ int main() {
               if (deceleration_time > 10) {
                 deceleration_time = 10;
               }
-              cout << "### deceleration penalty ### " << 100 * deceleration_time << endl;
+              cout << "### deceleration penalty ### " << 100 * deceleration_time << endl; // logging
               next_trajectory_cost += 100*deceleration_time;
 
             } else if ((state == "KL") && (acceleration > 0.0) && (deceleration_at > 0)) {
@@ -250,7 +256,7 @@ int main() {
 
             } else {
 
-              cout << "Bc cost: 0, ";
+              cout << "Bc cost: 0, "; // logging
             }
 
             // When speed limit exceeded
@@ -276,6 +282,7 @@ int main() {
 
             }
 
+            // logging
             cout << "total_cost " << next_trajectory_cost;
             cout << endl;
 
@@ -291,7 +298,7 @@ int main() {
           // logging
           if (prev_lane != lane) {
             is_lane_changed = true;
-            cout << " ======================= LANE CHANGED ======================= " << endl;
+            cout << " ======================= LANE CHANGED ======================= " << endl; // logging
 
           } else if (prev_lane == lane) {
             is_lane_changed = false;
