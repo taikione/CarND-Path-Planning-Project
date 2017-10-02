@@ -221,7 +221,7 @@ int main() {
               if (deceleration_time > 10) {
                 deceleration_time = 10;
               }
-              cout << "### deceleration penalty ### " << 100 * deceleration_time << endl; // logging
+              cout << "### continuous deceleration penalty ### " << 100 * deceleration_time << endl; // logging
               next_trajectory_cost += 100*deceleration_time;
 
             } else if ((state == "KL") && (acceleration > 0.0) && (deceleration_at > 0)) {
