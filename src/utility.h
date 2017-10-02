@@ -9,9 +9,6 @@
 #include <math.h>
 
 using namespace std;
-// static const double SENSOR_FUSION_S_NOISE = 9.0;
-// static const double SENSOR_FUSION_S_NOISE = -9.0;
-static const double SENSOR_FUSION_S_NOISE = 0.0;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -166,33 +163,5 @@ vector<vector<double>> getSDTrajectory(const vector<double> &trajectory_x, const
   return {trajectory_s, trajectory_d};
 
 }
-
-
-vector<vector<double>> getDenoisingSensorfusion(const vector<vector<double>> &sensor_fusion) {
-
-  vector<vector<double>> denoised_sensorfusions;
-
-  for(int i=0; i<sensor_fusion.size(); i++) {
-    double id = sensor_fusion[i][0];
-    double x = sensor_fusion[i][1];
-    double y = sensor_fusion[i][2];
-    double vx = sensor_fusion[i][3];
-    double vy = sensor_fusion[i][4];
-    double s = sensor_fusion[i][5] + SENSOR_FUSION_S_NOISE;
-    double d = sensor_fusion[i][6];
-
-    vector<double> denoised_sensorfusion{id, x, y, vx, vy, s, d};
-
-    denoised_sensorfusions.push_back(denoised_sensorfusion);
-  }
-
-  return denoised_sensorfusions;
-}
-
-// vector<double> getParameters(const string state, double lane) {
-//
-//   double next_state;
-// }
-
 
 #endif //PATH_PLANNING_UTILITIES_H
