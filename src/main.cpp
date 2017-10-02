@@ -177,17 +177,6 @@ int main() {
               next_trajectory_cost += LANE_CHANGE_COST;
               next_trajectory_cost += LOW_SPEED_COST;
 
-            // velocity up
-            } else if (state == "LCLa" && prev_lane > 0) {
-              acceleration = 0.224;
-              next_lane = prev_lane - 1;
-              next_trajectory_cost += LANE_CHANGE_COST;
-
-            } else if (state == "LCRa" && prev_lane < 2) {
-              acceleration = 0.224;
-              next_lane = prev_lane + 1;
-              next_trajectory_cost += LANE_CHANGE_COST;
-
             } else {
               continue;
 
@@ -195,6 +184,7 @@ int main() {
 
             double distance = getClosestVehicleDistance(car_s, next_lane, sensor_fusion);
 
+            // Calculate the acceleration when state is KL.
             if ((state == "KL") && (distance < 15.0)) {
               if (distance < 0.5) {
                 distance = 0.5;
@@ -219,6 +209,7 @@ int main() {
 
             }
 
+            // Increase cost when continuously decelerating
             if ((state == "KL") && (acceleration < 0.0) && (deceleration_at > 0)) {
               int deceleration_time = iterate - deceleration_at;
               if (deceleration_time > 10) {
@@ -237,34 +228,42 @@ int main() {
 
             next_ref_val = prev_ref_val + acceleration;
 
-            cout << state << "\t";
+            cout << state << "\t"; // logging
 
+            // Generate a trajectory using parameters according to state
             tmp_trajectory = getTrajectory(car_x, car_y, car_yaw, car_s, next_ref_val, next_lane, prev_size,
                                            previous_path_x, previous_path_y,
                                            map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
+            // Convert to xy trajectory to sd trajectory
             vector<vector<double>> sd_trajectory = getSDTrajectory(tmp_trajectory[0], tmp_trajectory[1], car_yaw, map_waypoints_x, map_waypoints_y);
             double forward_collision_cost = getForwardCollisionCost(next_lane, car_s, sd_trajectory, sensor_fusion);
-            cout << "Fc cost: " << forward_collision_cost << ", ";
             next_trajectory_cost += forward_collision_cost;
+            cout << "Fc cost: " << forward_collision_cost << ", "; // logging
 
+            // Calculate the collision cost of car coming from behind when lane changing only
             if (next_lane != prev_lane) {
               double backward_collision_cost = getBackwardCollisionCost(next_lane, car_s, sd_trajectory, sensor_fusion);
-              cout << "Bc cost: " << backward_collision_cost << ", ";
+
+              cout << "Bc cost: " << backward_collision_cost << ", "; // logging
               next_trajectory_cost += backward_collision_cost;
 
             } else {
+
               cout << "Bc cost: 0, ";
             }
 
+            // When speed limit exceeded
             if ((prev_ref_val > SPEED_LIMIT) && (acceleration > 0.0)) {
               next_trajectory_cost += OVER_SPEED_LIMIT_COST;
             }
 
+            // Add the cost of lane changing
             if ((next_lane == prev_lane) && (forward_collision_cost > 0.0) && (acceleration >= 0.0)) {
               next_trajectory_cost += COLLISON_ACC_COST;
             }
 
+            // Add cost for continuous lane change
             if ((is_lane_changed) && (next_lane != prev_lane) && (lane_change_elapsed_time == 0)) {
               next_trajectory_cost += LANE_CHANGE_COST*5;
               lane_change_elapsed_time = iterate + 5;
@@ -273,8 +272,8 @@ int main() {
               next_trajectory_cost += LANE_CHANGE_COST*5;
 
             } else {
-
               lane_change_elapsed_time = 0;
+
             }
 
             cout << "total_cost " << next_trajectory_cost;
@@ -289,6 +288,7 @@ int main() {
 
           }
 
+          // logging
           if (prev_lane != lane) {
             is_lane_changed = true;
             cout << " ======================= LANE CHANGED ======================= " << endl;

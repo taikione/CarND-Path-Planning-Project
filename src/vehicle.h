@@ -8,7 +8,6 @@
 #include "spline.h"
 #include "utility.h"
 
-static const double VEHICLE_WIDTH = 6.0;
 static const double COLLISION_PENALTY = 6.5;
 
 using namespace std;
@@ -84,7 +83,7 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
   ptsy.push_back(next_wp1[1]);
   ptsy.push_back(next_wp2[1]);
 
-  // 現在時刻の座標を0として, ptsx, ptsyを書き換え(spline.set_points の為?)
+  // To initialize ptsx and ptsy of first elements to 0, we subtract ref values(ref_x, ref_y) from all elements.
   for(int i=0; i<ptsx.size(); i++){
     double shift_x = ptsx[i] - ref_x;
     double shift_y = ptsy[i] - ref_y;
@@ -93,6 +92,7 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
     ptsy[i] = (shift_x * sin(0-ref_yaw) + shift_y * cos(0-ref_yaw));
   }
 
+  // Create a trajectory using spline and 5 data points from ptsx and ptsy.
   tk::spline s;
   s.set_points(ptsx, ptsy);
 
@@ -104,11 +104,13 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
     next_y_vals.push_back(previous_path_y[i]);
   }
 
-  double target_x = 30.0;
+  // Create 30m trajectory in a straight line distance.
+  double target_x = 70.0;
   double target_y = s(target_x);
   double target_dist = sqrt((target_x)*(target_x) + (target_y)*(target_y));
 
   // ref_val/2.24 is to convert mi/h to m/s: 1/(1.61*1000/3600) = 2.24
+  // Because the time of car moves to the next point is 0.02 seconds, ref_val is multiplied by 0.02
   double N = (target_dist / (0.02*ref_val / 2.24));
 
   double x_add_on = 0;
@@ -122,11 +124,10 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
     double x_ref = x_point;
     double y_ref = y_point;
 
-    // 現在地点を基準に, trajectoryの相対座標を作る
+    // Modify the global coordinates to car direction
     x_point = (x_ref*cos(ref_yaw) - y_ref*sin(ref_yaw));
     y_point = (x_ref*sin(ref_yaw) + y_ref*cos(ref_yaw));
 
-    // grobal coordinateへ
     x_point += ref_x;
     y_point += ref_y;
 
@@ -138,7 +139,7 @@ vector<vector<double>> getTrajectory(double car_x, double car_y, double car_yaw,
 }
 
 
-double isCollision(int lane, const vector<double> &trajectory_s, const vector<double> &trajectory_d,
+double isCollision(const vector<double> &trajectory_s,
                    const vector<double> &target_trajectory_s, const vector<double> &target_trajectory_d) {
 
   int collision_at = 0;
@@ -185,7 +186,7 @@ vector<double> getClosestBackwardVehicles(double car_s,
                                           const vector<vector<double>> &sensor_fusion) {
 
   vector<double> closest_backward_vehicle;
-  double distance_to_backward_vehicle = 30;
+  double distance_to_backward_vehicle = 20;
 
   for (int i = 0; i < sensor_fusion.size(); i++) {
     double d = sensor_fusion[i][6];
@@ -195,7 +196,6 @@ vector<double> getClosestBackwardVehicles(double car_s,
       double s = sensor_fusion[i][5];
 
       if ((s <= car_s) && ((car_s - s) <= distance_to_backward_vehicle)) {
-        // cout << "closest backward !!!" << endl;
         closest_backward_vehicle = sensor_fusion[i];
         distance_to_backward_vehicle = car_s - s;
       }
@@ -222,7 +222,7 @@ vector<vector<double>> getOtherVehicleTrajectory(vector<double> &vehicle, int tr
   double speed = sqrt(vx * vx + vy * vy);
   double yaw = atan2(vy, vx);
 
-  // trajectory内のway pointは0.02秒ごと, vx, vyは1秒毎なのでvx, vyを5で割る
+  // Because the time of car moves to the next way point is 0.02 seconds, ref_val is multiplied by 0.02
   for(int i=0; i<trajectory_size; i++) {
     closest_vehicle_s += speed * 0.02 * cos(yaw);
     closest_vehicle_d -= speed * 0.02 * sin(yaw);
@@ -248,7 +248,8 @@ double getForwardCollisionCost(int lane, double car_s,
   vector<double> trajectory_s = sd_trajectory[0];
   vector<double> trajectory_d = sd_trajectory[1];
 
-  // get closest vehicle in changed lane
+  // get closest forward vehicle in changed lane
+  // forward_vehicle is included Sensor fusion data.
   vector<double> forward_vehicle = getClosestForwardVehicles(trajectory_s[0], lane, sensor_fusion);
 
   if (forward_vehicle.size() == 7) {
@@ -258,11 +259,9 @@ double getForwardCollisionCost(int lane, double car_s,
     vector<vector<double>> forward_vehicle_trajectory = getOtherVehicleTrajectory(forward_vehicle, trajectory_s.size());
     cout << "F_Dist: " << forward_vehicle_trajectory[0][0] - trajectory_s[0] << "; ";
 
-    forward_collision_at = isCollision(lane, trajectory_s, trajectory_d,
-                                       forward_vehicle_trajectory[0], forward_vehicle_trajectory[1]);
+    forward_collision_at = isCollision(trajectory_s, forward_vehicle_trajectory[0], forward_vehicle_trajectory[1]);
 
     if (forward_collision_at != 0.0) {
-      // cost += exp(3.0 / forward_collision_at);
       cost += COLLISION_PENALTY / forward_collision_at;
     }
   }
@@ -284,6 +283,7 @@ double getBackwardCollisionCost(int lane, double car_s,
   vector<double> trajectory_d = sd_trajectory[1];
 
   // create closest backward vehicle trajectory
+  // backward_vehicle is included Sensor fusion data.
   vector<double> backward_vehicle = getClosestBackwardVehicles(trajectory_s[0], lane, sensor_fusion);
 
   if (backward_vehicle.size() == 7) {
@@ -292,8 +292,7 @@ double getBackwardCollisionCost(int lane, double car_s,
     vector<vector<double>> backward_vehicle_trajectory = getOtherVehicleTrajectory(backward_vehicle, trajectory_s.size());
     cout << "B_Dist: " << trajectory_s[0] - backward_vehicle_trajectory[0][0] << "; ";
 
-    backward_collision_at = isCollision(lane, trajectory_s, trajectory_d,
-                                        backward_vehicle_trajectory[0], backward_vehicle_trajectory[1]);
+    backward_collision_at = isCollision(trajectory_s, backward_vehicle_trajectory[0], backward_vehicle_trajectory[1]);
 
     if (backward_collision_at != 0.0) {
       cost += COLLISION_PENALTY / backward_collision_at;

@@ -1,7 +1,3 @@
-//
-// Created by 西銘 大喜 on 2017/09/26.
-//
-
 #ifndef PATH_PLANNING_UTILITIES_H
 #define PATH_PLANNING_UTILITIES_H
 
