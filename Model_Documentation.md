@@ -51,13 +51,6 @@ I used the following eight cost functions.(main.cpp)
 ### Cost of collision with vehicle
 The cost of collisions is calculated by `getForwardCollisionCost()` and `getBackwardCollisionCost()`. Calculation process is described as below.
 
-0. 自分自身のxy trajectoryをsd trajectoryに変換する
-1. 現在の自分自身の車に最も近い前方の車をsensorfusion dataから取得する (L253)
-2. 前方の車のsensorfusion dataに含まれるcar's x velocity, car's y velocityから速度と移動方向の向きを計算し、その車のシンプルなsd trajectoryを計算する。(L259)
-3. 自分の車のtrajectoryと前方の車のtrajectoryを使って衝突する位置を取得
-	4. 衝突位置の計算は、各trajectoryを後ろから見て、互いのway pointの差が20以下なら衝突として判定する
-5. 6.5 / 衝突位置 * 1000 を衝突コストとする。また衝突しない場合は0になる
-
 1. Convert generated xy trajectory to sd trajectory.
 2. Search the closest car to current position using sensor fusion data.
 3. Using `car's x velocity` and `car's y velocity` included sensor fusion data of the car, compute car's yaw. Then compute the sd coordinates using yaw and velocity, and generate a simple trajectory.
